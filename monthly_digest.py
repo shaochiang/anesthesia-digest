@@ -221,10 +221,16 @@ MODEL = CFG["model"]
 _anthropic_client = None
 
 
+class FatalLLMError(Exception):
+    """設定錯誤，重試也沒用，直接停下來"""
+
+
 def _call_gemini(system, user, max_tokens):
     key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not key:
-        raise RuntimeError("找不到 GEMINI_API_KEY")
+        raise FatalLLMError(
+            "找不到 GEMINI_API_KEY。請到專案 Settings → Secrets and variables "
+            "→ Actions → Repository secrets，確認有一組名稱正好是 GEMINI_API_KEY 的密鑰。")
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
            f"{MODEL}:generateContent")
     body = {
@@ -233,10 +239,29 @@ def _call_gemini(system, user, max_tokens):
         "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.3},
     }
     r = requests.post(url, params={"key": key}, json=body, timeout=180)
+
     if r.status_code == 429:
-        raise RuntimeError("超過免費層速率限制（429）")
+        raise RuntimeError("撞到免費層速率限制（429），稍後重試")
+    if r.status_code in (400, 401, 403, 404):
+        detail = r.text[:400].replace(key, "***")
+        hint = ""
+        if r.status_code == 404:
+            hint = (f"\n  → 模型名稱「{MODEL}」可能已不存在。到 "
+                    "https://ai.google.dev/gemini-api/docs/models 查目前可用的名稱，"
+                    "改 config.json 的 model 欄位。")
+        elif r.status_code in (400, 401, 403):
+            hint = ("\n  → 金鑰無效或沒有權限。到 https://aistudio.google.com "
+                    "重新產生一組，再更新 GitHub 的 GEMINI_API_KEY。"
+                    "常見原因是複製時多帶了空白或換行。")
+        raise FatalLLMError(f"Gemini 回傳 HTTP {r.status_code}：{detail}{hint}")
+
     r.raise_for_status()
-    cand = r.json()["candidates"][0]
+    data = r.json()
+    if not data.get("candidates"):
+        raise RuntimeError(f"回應沒有內容：{str(data)[:300]}")
+    cand = data["candidates"][0]
+    if "content" not in cand:
+        raise RuntimeError(f"回應被中止（{cand.get('finishReason')}）")
     return "".join(p.get("text", "") for p in cand["content"]["parts"])
 
 
@@ -274,14 +299,33 @@ evidence 從這些選一個：指引、統合分析、隨機對照試驗、系�
 
 def call_llm(system, user, max_tokens=4000):
     fn = _call_gemini if PROVIDER == "gemini" else _call_anthropic
-    for attempt in range(4):
+    for attempt in range(3):
         try:
             return fn(system, user, max_tokens)
+        except FatalLLMError:
+            raise
         except Exception as e:
-            wait = 20 * (attempt + 1)
-            log(f"模型呼叫失敗（第 {attempt + 1} 次，{wait} 秒後重試）：{e}")
+            wait = 15 * (attempt + 1)
+            log(f"呼叫失敗（第 {attempt + 1}/3 次，{wait} 秒後重試）：{e}")
             time.sleep(wait)
-    raise RuntimeError("模型連續呼叫失敗")
+    raise RuntimeError("連續三次呼叫失敗")
+
+
+def preflight():
+    """開跑前先測一次連線，設定有問題就立刻停，不要浪費十幾分鐘"""
+    log(f"檢查模型連線（provider={PROVIDER}, model={MODEL}）…")
+    try:
+        fn = _call_gemini if PROVIDER == "gemini" else _call_anthropic
+        fn("你是一個測試用的助手。", "請只回覆兩個字：正常", 50)
+        log("模型連線正常")
+    except FatalLLMError as e:
+        log("=" * 60)
+        log("設定有問題，無法繼續：")
+        log(str(e))
+        log("=" * 60)
+        sys.exit(1)
+    except Exception as e:
+        log(f"連線測試失敗但可能是暫時性問題，仍繼續嘗試：{e}")
 
 
 def parse_json(text):
@@ -512,6 +556,8 @@ def main():
     log(f"開始產生 {year}-{month:02d} 月報")
     DOCS.mkdir(parents=True, exist_ok=True)
     DATA.mkdir(parents=True, exist_ok=True)
+
+    preflight()
 
     articles = collect(year, month)
     if not articles:
