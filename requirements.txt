@@ -1,0 +1,3 @@
+requests>=2.31
+# 只有 provider 設成 anthropic 時才需要，設成 gemini 可以不管它
+anthropic>=0.40

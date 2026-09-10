@@ -1,0 +1,44 @@
+name: 產生月報
+
+on:
+  schedule:
+    # 每月 6 號台灣時間早上 6 點（UTC 5 號 22:00），留幾天讓 PubMed 完成索引
+    - cron: "0 22 5 * *"
+  workflow_dispatch:
+    inputs:
+      month:
+        description: "指定月份，格式 2026-08。留空代表上個月。"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: 抓取並整理文獻
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NCBI_EMAIL: ${{ secrets.NCBI_EMAIL }}
+          NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
+          TARGET_MONTH: ${{ github.event.inputs.month }}
+        run: python monthly_digest.py
+
+      - name: 存回網站檔案
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git diff --staged --quiet || git commit -m "月報更新 $(date -u +%Y-%m-%d)"
+          git push
