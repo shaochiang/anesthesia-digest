@@ -44,7 +44,8 @@
   "max_articles": 24,
 
   "provider": "gemini",
-  "model": "gemini-2.5-flash",
+  "model": "gemini-3.6-flash",
+  "thinking_level": "minimal",
 
   "batch_size": 6,
   "sleep_between_batches": 8
