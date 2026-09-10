@@ -3,16 +3,63 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>麻醉科文獻月報</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet">
 <style>
-body{margin:0;background:#EDEFF0;color:#16232B;
- font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.75}
-.wrap{max-width:44rem;margin:0 auto;padding:3rem 1.25rem}
-h1{font-size:2.2rem;margin:0 0 .5rem}
-p{color:#5D6B73}
-</style></head>
-<body><div class="wrap">
-<h1>麻醉科文獻月報</h1>
-<p>設定完成了，但還沒有產生任何月報。</p>
-<p>到 GitHub 專案的 Actions 頁面，選「產生月報」，按 Run workflow 手動跑第一次，幾分鐘後重新整理這一頁就會看到內容。</p>
+:root{
+  --paper:#EDEFF0; --card:#FFFFFF; --ink:#16232B; --muted:#5D6B73;
+  --accent:#0E5B67; --rule:#CDD5D8;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Noto Sans TC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:17px; line-height:1.75; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:44rem;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+a{color:var(--accent)}
+.masthead{border-bottom:2px solid var(--ink);padding-bottom:1rem;margin-bottom:2.5rem}
+.masthead .name{font-size:.95rem;letter-spacing:.02em;color:var(--muted);margin:0}
+.masthead h1{
+  font-family:"Noto Serif TC",Georgia,serif; font-weight:700;
+  font-size:2.6rem; line-height:1.15; margin:.4rem 0 0;
+}
+.masthead .count{margin:.6rem 0 0;color:var(--muted);font-size:.95rem}
+.overview{margin-bottom:3rem}
+.overview .opening{
+  font-family:"Noto Serif TC",Georgia,serif; font-size:1.2rem;
+  line-height:1.85; margin:0 0 2rem;
+}
+.theme{border-left:3px solid var(--accent);padding-left:1.1rem;margin:1.6rem 0}
+.theme h3{margin:0 0 .35rem;font-size:1.05rem}
+.theme p{margin:0;color:#33434C}
+h2.section{
+  font-family:"Noto Serif TC",Georgia,serif;font-size:1.35rem;
+  margin:3rem 0 1.2rem;padding-bottom:.4rem;border-bottom:1px solid var(--rule);
+}
+article.paper{background:var(--card);padding:1.4rem 1.5rem;margin:0 0 1rem;border-radius:2px}
+article.paper .meta{font-size:.82rem;color:var(--muted);margin:0 0 .5rem}
+article.paper .tag{
+  display:inline-block;background:var(--accent);color:#fff;
+  padding:.1rem .5rem;border-radius:2px;margin-right:.5rem;font-size:.78rem;
+}
+article.paper h3{
+  font-family:"Noto Serif TC",Georgia,serif;font-size:1.15rem;
+  line-height:1.5;margin:0 0 .7rem;
+}
+article.paper .bottom{margin:0 0 .7rem;font-weight:500}
+article.paper .rel{margin:0 0 .9rem;color:#42525B;font-size:.96rem}
+article.paper .src{font-size:.85rem;margin:0}
+article.paper .orig{color:var(--muted);font-size:.82rem;margin:.5rem 0 0}
+.foot{margin-top:4rem;padding-top:1.2rem;border-top:1px solid var(--rule);
+  color:var(--muted);font-size:.85rem}
+ul.months{list-style:none;padding:0;margin:0}
+ul.months li{border-bottom:1px solid var(--rule);padding:.9rem 0}
+ul.months a{font-family:"Noto Serif TC",Georgia,serif;font-size:1.3rem;text-decoration:none}
+@media(max-width:600px){.masthead h1{font-size:2rem}.wrap{padding:1.75rem 1rem 4rem}}
+</style>
+</head><body><div class="wrap">
+<header class="masthead"><p class="name">每月自動彙整 PubMed 重要文獻</p><h1>麻醉科文獻月報</h1></header><ul class="months"><li><a href="2026-08.html">2026 年 8 月</a></li></ul><p class="foot">內容由 PubMed 摘要經 AI 整理，僅供快速導讀，臨床決策前請閱讀原文。<br>
+產生時間：2026-09-10 06:39</p>
 </div></body></html>
- 
