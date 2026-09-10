@@ -233,12 +233,26 @@ def _call_gemini(system, user, max_tokens):
             "→ Actions → Repository secrets，確認有一組名稱正好是 GEMINI_API_KEY 的密鑰。")
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
            f"{MODEL}:generateContent")
+
+    # Gemini 3.x 不接受自訂 temperature / top_p / top_k，故不送這些參數。
+    # 思考功能預設開啟且思考 token 算在輸出額度內，會把回覆擠掉，所以調到最低。
+    gen_cfg = {"maxOutputTokens": max_tokens * 2}
+    level = CFG.get("thinking_level")
+    if level:
+        gen_cfg["thinkingConfig"] = {"thinkingLevel": level}
+
     body = {
         "system_instruction": {"parts": [{"text": system}]},
         "contents": [{"role": "user", "parts": [{"text": user}]}],
-        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.3},
+        "generationConfig": gen_cfg,
     }
     r = requests.post(url, params={"key": key}, json=body, timeout=180)
+
+    # 若因為 thinkingConfig 不被接受而回 400，退回最陽春的請求再試一次
+    if r.status_code == 400 and "thinkingConfig" in gen_cfg:
+        log("模型不接受 thinkingConfig，改用基本參數重試")
+        body["generationConfig"] = {"maxOutputTokens": max_tokens * 2}
+        r = requests.post(url, params={"key": key}, json=body, timeout=180)
 
     if r.status_code == 429:
         raise RuntimeError("撞到免費層速率限制（429），稍後重試")
@@ -246,13 +260,13 @@ def _call_gemini(system, user, max_tokens):
         detail = r.text[:400].replace(key, "***")
         hint = ""
         if r.status_code == 404:
-            hint = (f"\n  → 模型名稱「{MODEL}」可能已不存在。到 "
-                    "https://ai.google.dev/gemini-api/docs/models 查目前可用的名稱，"
-                    "改 config.json 的 model 欄位。")
+            hint = (f"\n  → 模型名稱「{MODEL}」可能已不存在或已停止對新用戶開放。"
+                    "錯誤訊息裡通常會直接告訴你該換成哪一個，把 config.json 的 "
+                    "model 欄位改成它即可。")
         elif r.status_code in (400, 401, 403):
-            hint = ("\n  → 金鑰無效或沒有權限。到 https://aistudio.google.com "
-                    "重新產生一組，再更新 GitHub 的 GEMINI_API_KEY。"
-                    "常見原因是複製時多帶了空白或換行。")
+            hint = ("\n  → 金鑰無效、沒有權限，或請求參數不被這個模型接受。"
+                    "若是金鑰問題，到 https://aistudio.google.com 重新產生一組，"
+                    "再更新 GitHub 的 GEMINI_API_KEY。")
         raise FatalLLMError(f"Gemini 回傳 HTTP {r.status_code}：{detail}{hint}")
 
     r.raise_for_status()
@@ -260,8 +274,12 @@ def _call_gemini(system, user, max_tokens):
     if not data.get("candidates"):
         raise RuntimeError(f"回應沒有內容：{str(data)[:300]}")
     cand = data["candidates"][0]
-    if "content" not in cand:
-        raise RuntimeError(f"回應被中止（{cand.get('finishReason')}）")
+    if "content" not in cand or not cand["content"].get("parts"):
+        reason = cand.get("finishReason", "未知")
+        if reason == "MAX_TOKENS":
+            raise RuntimeError(
+                "輸出長度不足，回覆被截斷。可把 config.json 的 batch_size 調小。")
+        raise RuntimeError(f"回應被中止（finishReason={reason}）")
     return "".join(p.get("text", "") for p in cand["content"]["parts"])
 
 
