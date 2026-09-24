@@ -237,14 +237,15 @@ class FatalLLMError(Exception):
     """設定錯誤，重試也沒用，直接停下來"""
 
 
-def _call_gemini(system, user, max_tokens):
+def _call_gemini(system, user, max_tokens, model=None):
+    model = model or MODEL
     key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not key:
         raise FatalLLMError(
             "找不到 GEMINI_API_KEY。請到專案 Settings → Secrets and variables "
             "→ Actions → Repository secrets，確認有一組名稱正好是 GEMINI_API_KEY 的密鑰。")
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-           f"{MODEL}:generateContent")
+           f"{model}:generateContent")
 
     # Gemini 3.x 不接受自訂 temperature / top_p / top_k，故不送這些參數。
     # 思考功能預設開啟且思考 token 算在輸出額度內，會把回覆擠掉，所以調到最低。
@@ -267,12 +268,14 @@ def _call_gemini(system, user, max_tokens):
         r = requests.post(url, params={"key": key}, json=body, timeout=180)
 
     if r.status_code == 429:
-        raise RuntimeError("撞到免費層速率限制（429），稍後重試")
+        raise RuntimeError("撞到速率限制（429）")
+    if r.status_code in (500, 502, 503, 504):
+        raise RuntimeError(f"模型忙碌中（HTTP {r.status_code}）")
     if r.status_code in (400, 401, 403, 404):
         detail = r.text[:400].replace(key, "***")
         hint = ""
         if r.status_code == 404:
-            hint = (f"\n  → 模型名稱「{MODEL}」可能已不存在或已停止對新用戶開放。"
+            hint = (f"\n  → 模型名稱「{model}」可能已不存在或已停止對新用戶開放。"
                     "錯誤訊息裡通常會直接告訴你該換成哪一個，把 config.json 的 "
                     "model 欄位改成它即可。")
         elif r.status_code in (400, 401, 403):
@@ -295,13 +298,13 @@ def _call_gemini(system, user, max_tokens):
     return "".join(p.get("text", "") for p in cand["content"]["parts"])
 
 
-def _call_anthropic(system, user, max_tokens):
+def _call_anthropic(system, user, max_tokens, model=None):
     global _anthropic_client
     if _anthropic_client is None:
         from anthropic import Anthropic
         _anthropic_client = Anthropic()
     resp = _anthropic_client.messages.create(
-        model=MODEL,
+        model=model or MODEL,
         max_tokens=max_tokens,
         system=system,
         messages=[{"role": "user", "content": user}],
@@ -327,18 +330,35 @@ evidence 從這些選一個：指引、統合分析、隨機對照試驗、系�
 """
 
 
+BACKOFF = [20, 45, 90, 150, 240]
+
+
 def call_llm(system, user, max_tokens=4000):
     fn = _call_gemini if PROVIDER == "gemini" else _call_anthropic
-    for attempt in range(3):
+    fallback = CFG.get("fallback_model", "").strip()
+    last = None
+
+    for attempt, wait in enumerate(BACKOFF, 1):
         try:
             return fn(system, user, max_tokens)
         except FatalLLMError:
             raise
-        except Exception as e:
-            wait = 15 * (attempt + 1)
-            log(f"呼叫失敗（第 {attempt + 1}/3 次，{wait} 秒後重試）：{e}")
-            time.sleep(wait)
-    raise RuntimeError("連續三次呼叫失敗")
+        except Exception as ex:
+            last = ex
+            log(f"呼叫失敗（第 {attempt}/{len(BACKOFF)} 次）：{ex}")
+            # 主模型連續過載時，中途改試備用模型
+            if attempt == 3 and fallback and fallback != MODEL:
+                log(f"改用備用模型 {fallback} 試試")
+                try:
+                    return fn(system, user, max_tokens, fallback)
+                except FatalLLMError as fe:
+                    log(f"備用模型不可用：{fe}")
+                except Exception as fe:
+                    log(f"備用模型也失敗：{fe}")
+            if attempt < len(BACKOFF):
+                log(f"等待 {wait} 秒後重試")
+                time.sleep(wait)
+    raise RuntimeError(f"重試 {len(BACKOFF)} 次仍失敗：{last}")
 
 
 def preflight():
@@ -367,29 +387,46 @@ def parse_json(text):
     return json.loads(t)
 
 
+def _block(a):
+    limit = CFG.get("abstract_chars", 1800)
+    return (f"PMID: {a['pmid']}\n期刊: {a['journal']}\n"
+            f"文獻類型: {', '.join(a['pubtypes']) or 'N/A'}\n"
+            f"標題: {a['title']}\n摘要: {a['abstract'][:limit]}")
+
+
 def summarize(articles):
     system = SUMMARY_SYSTEM.replace(
         "SUBSPECIALTIES", "、".join(CFG["subspecialties"]))
     results = {}
     bs = CFG["batch_size"]
+
     for i in range(0, len(articles), bs):
         batch = articles[i:i + bs]
-        blocks = []
-        for a in batch:
-            blocks.append(
-                f"PMID: {a['pmid']}\n期刊: {a['journal']}\n"
-                f"文獻類型: {', '.join(a['pubtypes']) or 'N/A'}\n"
-                f"標題: {a['title']}\n摘要: {a['abstract'][:3000]}"
-            )
-        user = "請整理以下 %d 篇文章：\n\n%s" % (len(batch), "\n\n---\n\n".join(blocks))
         log(f"摘要中… ({i + 1}-{i + len(batch)}/{len(articles)})")
+        user = "請整理以下 %d 篇文章：\n\n%s" % (
+            len(batch), "\n\n---\n\n".join(_block(a) for a in batch))
         try:
             for item in parse_json(call_llm(system, user)):
                 results[str(item.get("pmid"))] = item
-        except Exception as e:
-            log(f"這批解析失敗，略過：{e}")
+        except Exception as ex:
+            log(f"整批失敗（{ex}），改為逐篇處理")
+            # 請求太大可能是失敗原因，拆成一篇一篇再試一次
+            for a in batch:
+                if a["pmid"] in results:
+                    continue
+                try:
+                    for item in parse_json(call_llm(
+                            system, "請整理以下 1 篇文章：\n\n" + _block(a), 2000)):
+                        results[str(item.get("pmid"))] = item
+                    log(f"  PMID {a['pmid']} 單篇成功")
+                except Exception as e2:
+                    log(f"  PMID {a['pmid']} 仍失敗，略過：{e2}")
+                time.sleep(4)
+
         if i + bs < len(articles):
-            time.sleep(CFG.get("sleep_between_batches", 8))
+            time.sleep(CFG.get("sleep_between_batches", 12))
+
+    log(f"摘要完成 {len(results)}/{len(articles)} 篇")
 
     merged = []
     for a in articles:
@@ -626,7 +663,8 @@ def main():
 
     articles = summarize(articles)
     if not articles:
-        log("摘要全部失敗，結束。")
+        log("摘要全部失敗。多半是模型服務暫時過載（503），")
+        log("過一段時間再手動 Run workflow 一次通常就會成功。")
         sys.exit(1)
 
     trends = make_trends(articles)
