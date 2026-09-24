@@ -60,6 +60,9 @@
   "model": "gemini-3.6-flash",
   "thinking_level": "minimal",
 
-  "batch_size": 6,
-  "sleep_between_batches": 8
+  "fallback_model": "gemini-3.8-flash",
+
+  "batch_size": 3,
+  "abstract_chars": 1800,
+  "sleep_between_batches": 12
 }
