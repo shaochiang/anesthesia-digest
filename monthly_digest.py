@@ -184,29 +184,41 @@ def score(article, core_set):
     return s
 
 
+def group_names():
+    return [g["name"] for g in CFG["journal_groups"]]
+
+
 def collect(year, month):
     first = datetime.date(year, month, 1)
     last = datetime.date(year, month, calendar.monthrange(year, month)[1])
     mindate, maxdate = first.strftime("%Y/%m/%d"), last.strftime("%Y/%m/%d")
 
-    core = CFG["core_journals"]
-    general = CFG["general_journals"]
+    pmid_group = {}   # pmid -> 所屬分組（先出現的分組優先）
+    specialty = set()  # 專科期刊（非綜合期刊），評分時加權
 
-    q_core = "(" + " OR ".join(f'"{j}"[Journal]' for j in core) + \
-             ") AND hasabstract AND english[Language]"
-    q_gen = "(" + " OR ".join(f'"{j}"[Journal]' for j in general) + ") AND " + \
-            CFG["general_topic_filter"] + " AND hasabstract AND english[Language]"
+    for g in CFG["journal_groups"]:
+        q = "(" + " OR ".join(f'"{j}"[Journal]' for j in g["journals"]) + ")"
+        if g.get("topic_filter"):
+            q += " AND " + g["topic_filter"]
+        else:
+            specialty.update(g["journals"])
+        q += " AND hasabstract AND english[Language]"
 
-    ids = esearch(q_core, mindate, maxdate) + esearch(q_gen, mindate, maxdate)
-    ids = list(dict.fromkeys(ids))
-    log(f"PubMed 找到 {len(ids)} 篇候選文章")
-    if not ids:
+        ids = esearch(q, mindate, maxdate)
+        log(f"「{g['name']}」找到 {len(ids)} 篇")
+        for pid in ids:
+            pmid_group.setdefault(pid, g["name"])
+
+    if not pmid_group:
         return []
 
-    arts = efetch(ids)
-    core_set = set(core)
-    scored = [(score(a, core_set), a) for a in arts]
-    scored = [(s, a) for s, a in scored if s > 0]
+    arts = efetch(list(pmid_group))
+    scored = []
+    for a in arts:
+        s = score(a, specialty)
+        if s > 0:
+            a["group"] = pmid_group.get(a["pmid"], group_names()[-1])
+            scored.append((s, a))
     scored.sort(key=lambda x: -x[0])
     picked = [a for _, a in scored[:CFG["max_articles"]]]
     log(f"篩選後保留 {len(picked)} 篇")
@@ -436,7 +448,8 @@ body{
   font-family:"Noto Sans TC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   font-size:17px; line-height:1.75; -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:44rem;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+.wrap{max-width:64rem;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+.narrow{max-width:42rem}
 a{color:var(--accent)}
 .masthead{border-bottom:2px solid var(--ink);padding-bottom:1rem;margin-bottom:2.5rem}
 .masthead .name{font-size:.95rem;letter-spacing:.02em;color:var(--muted);margin:0}
@@ -457,20 +470,32 @@ h2.section{
   font-family:"Noto Serif TC",Georgia,serif;font-size:1.35rem;
   margin:3rem 0 1.2rem;padding-bottom:.4rem;border-bottom:1px solid var(--rule);
 }
-article.paper{background:var(--card);padding:1.4rem 1.5rem;margin:0 0 1rem;border-radius:2px}
-article.paper .meta{font-size:.82rem;color:var(--muted);margin:0 0 .5rem}
+article.paper{background:var(--card);padding:1.5rem 1.6rem;margin:0 0 1rem;border-radius:2px}
+article.paper .meta{font-size:.82rem;color:var(--muted);margin:0 0 1rem;
+  padding-bottom:.7rem;border-bottom:1px solid var(--rule)}
 article.paper .tag{
   display:inline-block;background:var(--accent);color:#fff;
   padding:.1rem .5rem;border-radius:2px;margin-right:.5rem;font-size:.78rem;
 }
-article.paper h3{
-  font-family:"Noto Serif TC",Georgia,serif;font-size:1.15rem;
-  line-height:1.5;margin:0 0 .7rem;
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:1.8rem;align-items:start}
+.cols .side{min-width:0}
+.cols .en{border-right:1px solid var(--rule);padding-right:1.8rem}
+.cols .lang{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 .5rem}
+.cols h3{font-family:"Noto Serif TC",Georgia,serif;font-size:1.1rem;
+  line-height:1.5;margin:0 0 .7rem}
+.cols .en h3{font-size:1rem;line-height:1.55;color:#2A3A43}
+.cols .abs{font-size:.88rem;line-height:1.7;color:#4A5A63;margin:0;
+  white-space:pre-line}
+.cols .bottom{margin:0 0 .7rem;font-weight:500}
+.cols .rel{margin:0;color:#42525B;font-size:.96rem}
+article.paper .src{font-size:.85rem;margin:1.1rem 0 0;padding-top:.8rem;
+  border-top:1px solid var(--rule)}
+@media(max-width:820px){
+  .cols{grid-template-columns:1fr;gap:1.2rem}
+  .cols .en{border-right:0;border-bottom:1px solid var(--rule);
+    padding-right:0;padding-bottom:1.2rem}
 }
-article.paper .bottom{margin:0 0 .7rem;font-weight:500}
-article.paper .rel{margin:0 0 .9rem;color:#42525B;font-size:.96rem}
-article.paper .src{font-size:.85rem;margin:0}
-article.paper .orig{color:var(--muted);font-size:.82rem;margin:.5rem 0 0}
 .foot{margin-top:4rem;padding-top:1.2rem;border-top:1px solid var(--rule);
   color:var(--muted);font-size:.85rem}
 ul.months{list-style:none;padding:0;margin:0}
@@ -491,7 +516,7 @@ HEAD = """<!doctype html>
 </head><body><div class="wrap">
 """
 
-FOOT = """<p class="foot">內容由 PubMed 摘要經 AI 整理，僅供快速導讀，臨床決策前請閱讀原文。<br>
+FOOT = """<p class="foot">左欄原文摘要引自 PubMed，著作權屬各期刊出版者所有；右欄中文重點由 AI 整理，僅供快速導讀，臨床決策前請閱讀原文。<br>
 產生時間：{ts}</p>
 </div></body></html>
 """
@@ -511,7 +536,7 @@ def render_month(year, month, articles, trends):
     out.append("</header>")
 
     if trends.get("opening") or trends.get("themes"):
-        out.append('<section class="overview">')
+        out.append('<section class="overview narrow">')
         if trends.get("opening"):
             out.append(f'<p class="opening">{e(trends["opening"])}</p>')
         for t in trends.get("themes", []):
@@ -520,27 +545,44 @@ def render_month(year, month, articles, trends):
                        f'<p>{e(t.get("body"))}</p></div>')
         out.append("</section>")
 
-    for sub in CFG["subspecialties"]:
-        group = [a for a in articles if a.get("subspecialty") == sub]
+    show_abs = CFG.get("show_original_abstract", True)
+
+    for gname in group_names():
+        group = [a for a in articles if a.get("group") == gname]
         if not group:
             continue
-        out.append(f'<h2 class="section">{e(sub)}</h2>')
+        out.append(f'<h2 class="section">{e(gname)}</h2>')
         for a in group:
             authors = "、".join(a["authors"])
             if len(a["authors"]) >= 3:
                 authors += " 等"
             link = (f"https://doi.org/{a['doi']}" if a["doi"]
                     else f"https://pubmed.ncbi.nlm.nih.gov/{a['pmid']}/")
+
             out.append('<article class="paper">')
             out.append(f'<p class="meta"><span class="tag">{e(a["evidence"])}</span>'
-                       f'{e(a["journal"])}　{e(authors)}</p>')
+                       f'{e(a["journal"])}　{e(authors)}　·　{e(a.get("subspecialty", ""))}</p>')
+
+            out.append('<div class="cols">')
+            # 左欄：原文
+            out.append('<div class="side en">')
+            out.append('<p class="lang">Original</p>')
+            out.append(f'<h3>{e(a["title"])}</h3>')
+            if show_abs:
+                out.append(f'<p class="abs">{e(a["abstract"])}</p>')
+            out.append("</div>")
+            # 右欄：中文
+            out.append('<div class="side zh">')
+            out.append('<p class="lang">中文重點</p>')
             out.append(f'<h3>{e(a["title_zh"])}</h3>')
             out.append(f'<p class="bottom">{e(a["bottom_line"])}</p>')
             out.append(f'<p class="rel">{e(a["clinical_relevance"])}</p>')
+            out.append("</div>")
+            out.append("</div>")
+
             out.append(f'<p class="src"><a href="{e(link)}" target="_blank" rel="noopener">'
-                       f'讀原文</a>　·　<a href="https://pubmed.ncbi.nlm.nih.gov/{e(a["pmid"])}/" '
+                       f'讀全文</a>　·　<a href="https://pubmed.ncbi.nlm.nih.gov/{e(a["pmid"])}/" '
                        f'target="_blank" rel="noopener">PubMed {e(a["pmid"])}</a></p>')
-            out.append(f'<p class="orig">{e(a["title"])}</p>')
             out.append("</article>")
 
     out.append(FOOT.format(ts=f"{datetime.datetime.now():%Y-%m-%d %H:%M}"))
