@@ -2,36 +2,48 @@
   "site_title": "麻醉科文獻月報",
   "site_subtitle": "每月自動彙整 PubMed 重要文獻",
 
-  "core_journals": [
-    "Anesthesiology",
-    "Anesth Analg",
-    "Br J Anaesth",
-    "Anaesthesia",
-    "Eur J Anaesthesiol",
-    "Can J Anaesth",
-    "J Clin Anesth",
-    "Reg Anesth Pain Med",
-    "Pain",
-    "Crit Care Med",
-    "Intensive Care Med",
-    "Crit Care",
-    "Am J Respir Crit Care Med",
-    "J Cardiothorac Vasc Anesth",
-    "Paediatr Anaesth",
-    "Int J Obstet Anesth",
-    "Anaesth Crit Care Pain Med"
+  "journal_groups": [
+    {
+      "name": "麻醉與疼痛",
+      "journals": [
+        "Anesthesiology",
+        "Anesth Analg",
+        "Br J Anaesth",
+        "Anaesthesia",
+        "Eur J Anaesthesiol",
+        "Can J Anaesth",
+        "J Clin Anesth",
+        "Reg Anesth Pain Med",
+        "Pain",
+        "J Cardiothorac Vasc Anesth",
+        "Paediatr Anaesth",
+        "Int J Obstet Anesth",
+        "Anaesth Crit Care Pain Med"
+      ]
+    },
+    {
+      "name": "重症加護",
+      "journals": [
+        "Crit Care Med",
+        "Intensive Care Med",
+        "Crit Care",
+        "Am J Respir Crit Care Med",
+        "Chest"
+      ]
+    },
+    {
+      "name": "綜合期刊",
+      "journals": [
+        "N Engl J Med",
+        "Lancet",
+        "JAMA",
+        "BMJ",
+        "JAMA Surg",
+        "Ann Surg"
+      ],
+      "topic_filter": "(anesthesia[MeSH Terms] OR anesthetics[MeSH Terms] OR analgesia[MeSH Terms] OR \"pain management\"[MeSH Terms] OR \"critical care\"[MeSH Terms] OR \"perioperative care\"[MeSH Terms] OR \"postoperative complications\"[MeSH Terms] OR \"respiration, artificial\"[MeSH Terms] OR intubation[MeSH Terms] OR sepsis[MeSH Terms] OR \"fluid therapy\"[MeSH Terms])"
+    }
   ],
-
-  "general_journals": [
-    "N Engl J Med",
-    "Lancet",
-    "JAMA",
-    "BMJ",
-    "JAMA Surg",
-    "Ann Surg"
-  ],
-
-  "general_topic_filter": "(anesthesia[MeSH Terms] OR anesthetics[MeSH Terms] OR analgesia[MeSH Terms] OR \"pain management\"[MeSH Terms] OR \"critical care\"[MeSH Terms] OR \"perioperative care\"[MeSH Terms] OR \"postoperative complications\"[MeSH Terms] OR \"respiration, artificial\"[MeSH Terms] OR intubation[MeSH Terms] OR sepsis[MeSH Terms] OR \"fluid therapy\"[MeSH Terms])",
 
   "subspecialties": [
     "圍術期照護與一般麻醉",
@@ -41,6 +53,7 @@
     "其他"
   ],
 
+  "show_original_abstract": true,
   "max_articles": 24,
 
   "provider": "gemini",
