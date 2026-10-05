@@ -17,7 +17,8 @@ body{
   font-family:"Noto Sans TC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   font-size:17px; line-height:1.75; -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:44rem;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+.wrap{max-width:64rem;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+.narrow{max-width:42rem}
 a{color:var(--accent)}
 .masthead{border-bottom:2px solid var(--ink);padding-bottom:1rem;margin-bottom:2.5rem}
 .masthead .name{font-size:.95rem;letter-spacing:.02em;color:var(--muted);margin:0}
@@ -38,20 +39,32 @@ h2.section{
   font-family:"Noto Serif TC",Georgia,serif;font-size:1.35rem;
   margin:3rem 0 1.2rem;padding-bottom:.4rem;border-bottom:1px solid var(--rule);
 }
-article.paper{background:var(--card);padding:1.4rem 1.5rem;margin:0 0 1rem;border-radius:2px}
-article.paper .meta{font-size:.82rem;color:var(--muted);margin:0 0 .5rem}
+article.paper{background:var(--card);padding:1.5rem 1.6rem;margin:0 0 1rem;border-radius:2px}
+article.paper .meta{font-size:.82rem;color:var(--muted);margin:0 0 1rem;
+  padding-bottom:.7rem;border-bottom:1px solid var(--rule)}
 article.paper .tag{
   display:inline-block;background:var(--accent);color:#fff;
   padding:.1rem .5rem;border-radius:2px;margin-right:.5rem;font-size:.78rem;
 }
-article.paper h3{
-  font-family:"Noto Serif TC",Georgia,serif;font-size:1.15rem;
-  line-height:1.5;margin:0 0 .7rem;
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:1.8rem;align-items:start}
+.cols .side{min-width:0}
+.cols .en{border-right:1px solid var(--rule);padding-right:1.8rem}
+.cols .lang{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 .5rem}
+.cols h3{font-family:"Noto Serif TC",Georgia,serif;font-size:1.1rem;
+  line-height:1.5;margin:0 0 .7rem}
+.cols .en h3{font-size:1rem;line-height:1.55;color:#2A3A43}
+.cols .abs{font-size:.88rem;line-height:1.7;color:#4A5A63;margin:0;
+  white-space:pre-line}
+.cols .bottom{margin:0 0 .7rem;font-weight:500}
+.cols .rel{margin:0;color:#42525B;font-size:.96rem}
+article.paper .src{font-size:.85rem;margin:1.1rem 0 0;padding-top:.8rem;
+  border-top:1px solid var(--rule)}
+@media(max-width:820px){
+  .cols{grid-template-columns:1fr;gap:1.2rem}
+  .cols .en{border-right:0;border-bottom:1px solid var(--rule);
+    padding-right:0;padding-bottom:1.2rem}
 }
-article.paper .bottom{margin:0 0 .7rem;font-weight:500}
-article.paper .rel{margin:0 0 .9rem;color:#42525B;font-size:.96rem}
-article.paper .src{font-size:.85rem;margin:0}
-article.paper .orig{color:var(--muted);font-size:.82rem;margin:.5rem 0 0}
 .foot{margin-top:4rem;padding-top:1.2rem;border-top:1px solid var(--rule);
   color:var(--muted);font-size:.85rem}
 ul.months{list-style:none;padding:0;margin:0}
@@ -60,6 +73,6 @@ ul.months a{font-family:"Noto Serif TC",Georgia,serif;font-size:1.3rem;text-deco
 @media(max-width:600px){.masthead h1{font-size:2rem}.wrap{padding:1.75rem 1rem 4rem}}
 </style>
 </head><body><div class="wrap">
-<header class="masthead"><p class="name">每月自動彙整 PubMed 重要文獻</p><h1>麻醉科文獻月報</h1></header><ul class="months"><li><a href="2026-08.html">2026 年 8 月</a></li></ul><p class="foot">內容由 PubMed 摘要經 AI 整理，僅供快速導讀，臨床決策前請閱讀原文。<br>
-產生時間：2026-09-10 06:39</p>
+<header class="masthead"><p class="name">每月自動彙整 PubMed 重要文獻</p><h1>麻醉科文獻月報</h1></header><ul class="months"><li><a href="2026-09.html">2026 年 9 月</a></li><li><a href="2026-08.html">2026 年 8 月</a></li></ul><p class="foot">左欄原文摘要引自 PubMed，著作權屬各期刊出版者所有；右欄中文重點由 AI 整理，僅供快速導讀，臨床決策前請閱讀原文。<br>
+產生時間：2026-10-05 22:47</p>
 </div></body></html>
